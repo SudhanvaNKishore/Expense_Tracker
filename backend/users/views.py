@@ -9,6 +9,9 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth.hashers import make_password
 from .serializers import UserRegistrationSerializer, UserSerializer
 from .models import CustomUser
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from expenses.models import Category
 
 User = get_user_model()
 
@@ -31,12 +34,19 @@ def register_user(request):
     serializer = UserRegistrationSerializer(data=request.data)
     if serializer.is_valid():
         user = serializer.save()
+        
+        # Create default categories for the new user
+        default_categories = ['Food', 'Transport', 'Entertainment', 'Bills', 'Others']
+        for category_name in default_categories:
+            Category.objects.create(name=category_name, user=user)
+        
         refresh = RefreshToken.for_user(user)
-        return Response({
+        response_data = {
             'user': UserSerializer(user).data,
-            'refresh': str(refresh),
             'access': str(refresh.access_token),
-        }, status=status.HTTP_201_CREATED)
+            'refresh': str(refresh),
+        }
+        return Response(response_data, status=status.HTTP_201_CREATED)
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['POST'])

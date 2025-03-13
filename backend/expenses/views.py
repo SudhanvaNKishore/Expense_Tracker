@@ -17,10 +17,16 @@ def expense_list_create(request):
         return Response(serializer.data)
     
     elif request.method == 'POST':
-        serializer = ExpenseSerializer(data=request.data)
+        serializer = ExpenseSerializer(data=request.data, context={'request': request})
         if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            try:
+                expense = serializer.save()
+                return Response(ExpenseSerializer(expense).data, status=status.HTTP_201_CREATED)
+            except Exception as e:
+                return Response(
+                    {'error': str(e)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 @api_view(['GET', 'PUT', 'DELETE'])
@@ -29,17 +35,26 @@ def expense_detail(request, pk):
     try:
         expense = Expense.objects.get(pk=pk, user=request.user)
     except Expense.DoesNotExist:
-        return Response(status=status.HTTP_404_NOT_FOUND)
+        return Response(
+            {'error': 'Expense not found'},
+            status=status.HTTP_404_NOT_FOUND
+        )
     
     if request.method == 'GET':
         serializer = ExpenseSerializer(expense)
         return Response(serializer.data)
     
     elif request.method == 'PUT':
-        serializer = ExpenseSerializer(expense, data=request.data)
+        serializer = ExpenseSerializer(expense, data=request.data, context={'request': request})
         if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
+            try:
+                expense = serializer.save()
+                return Response(ExpenseSerializer(expense).data)
+            except Exception as e:
+                return Response(
+                    {'error': str(e)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
     
     elif request.method == 'DELETE':
@@ -57,6 +72,15 @@ def category_list_create(request):
     elif request.method == 'POST':
         serializer = CategorySerializer(data=request.data)
         if serializer.is_valid():
-            serializer.save(user=request.user)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
+            try:
+                category = serializer.save(user=request.user)
+                return Response(
+                    CategorySerializer(category).data,
+                    status=status.HTTP_201_CREATED
+                )
+            except Exception as e:
+                return Response(
+                    {'error': str(e)},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

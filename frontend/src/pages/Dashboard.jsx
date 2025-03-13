@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Container,
@@ -21,18 +21,19 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Alert,
 } from '@mui/material';
 import { Edit, Delete } from '@mui/icons-material';
 import Navbar from '../components/layout/Navbar';
+import { useAuth } from '../context/AuthContext';
+import { getExpenses, addExpense } from '../services/expenseService';
 
 function Dashboard() {
-  const [expenses, setExpenses] = useState([
-    { id: 1, name: 'Travel', amount: 50.00, category: 'Transport', date: '2024-07-21' },
-    { id: 2, name: 'Maggi', amount: 20.00, category: 'Food', date: '2024-07-15' },
-  ]);
+  const { user } = useAuth();
+  const [expenses, setExpenses] = useState([]);
 
   const [newExpense, setNewExpense] = useState({
-    name: '',
+    title: '',
     amount: '',
     category: '',
     date: new Date().toISOString().split('T')[0],
@@ -41,8 +42,23 @@ function Dashboard() {
   const [editingExpense, setEditingExpense] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [filterCategory, setFilterCategory] = useState('All');
+  const [error, setError] = useState('');
 
   const categories = ['Food', 'Transport', 'Entertainment', 'Bills', 'Others'];
+
+  useEffect(() => {
+    fetchExpenses();
+  }, []);
+
+  const fetchExpenses = async () => {
+    try {
+      const data = await getExpenses();
+      setExpenses(data);
+    } catch (error) {
+      console.error('Error fetching expenses:', error);
+      setError('Failed to fetch expenses');
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -60,18 +76,36 @@ function Dashboard() {
     }));
   };
 
-  const handleAddExpense = () => {
-    if (newExpense.name && newExpense.amount && newExpense.category) {
-      setExpenses(prev => [...prev, {
-        id: Date.now(),
-        ...newExpense
-      }]);
-      setNewExpense({
-        name: '',
-        amount: '',
-        category: '',
-        date: new Date().toISOString().split('T')[0],
-      });
+  const handleAddExpense = async () => {
+    if (newExpense.title && newExpense.amount && newExpense.category) {
+      try {
+        const expenseData = {
+          title: newExpense.title,
+          amount: parseFloat(newExpense.amount),
+          category: newExpense.category,
+          date: newExpense.date,
+        };
+        
+        console.log('Sending expense data:', expenseData);
+        const createdExpense = await addExpense(expenseData);
+        console.log('Response:', createdExpense);
+        
+        setExpenses(prev => [...prev, createdExpense]);
+        setError('');
+        
+        // Reset form
+        setNewExpense({
+          title: '',
+          amount: '',
+          category: '',
+          date: new Date().toISOString().split('T')[0],
+        });
+      } catch (error) {
+        console.error('Error adding expense:', error);
+        setError('Failed to add expense. Please try again.');
+      }
+    } else {
+      setError('Please fill in all required fields');
     }
   };
 
@@ -98,9 +132,9 @@ function Dashboard() {
 
   const filteredExpenses = filterCategory === 'All'
     ? expenses
-    : expenses.filter(expense => expense.category === filterCategory);
+    : expenses.filter(expense => expense.category_name === filterCategory);
 
-  const totalAmount = filteredExpenses.reduce((sum, expense) => sum + Number(expense.amount), 0);
+  const totalAmount = filteredExpenses.reduce((sum, expense) => sum + parseFloat(expense.amount), 0);
 
   const iconButtonSx = {
     '&:hover': {
@@ -116,14 +150,21 @@ function Dashboard() {
       <Navbar />
       <Box component="main" sx={{ flexGrow: 1, pt: 8 }}>
         <Container maxWidth="lg" sx={{ mt: 4, mb: 4 }}>
+          {error && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {error}
+            </Alert>
+          )}
+          
           {/* Add Expense Form */}
           <Paper sx={{ p: 2, mb: 4, display: 'flex', gap: 2, alignItems: 'flex-start' }}>
             <TextField
               label="Expense Name"
-              name="name"
-              value={newExpense.name}
+              name="title"
+              value={newExpense.title}
               onChange={handleInputChange}
               size="small"
+              required
             />
             <TextField
               label="Amount (₹)"
@@ -132,8 +173,9 @@ function Dashboard() {
               value={newExpense.amount}
               onChange={handleInputChange}
               size="small"
+              required
             />
-            <FormControl size="small" sx={{ minWidth: 120 }}>
+            <FormControl size="small" required sx={{ minWidth: 120 }}>
               <InputLabel>Category</InputLabel>
               <Select
                 value={newExpense.category}
@@ -152,6 +194,7 @@ function Dashboard() {
               value={newExpense.date}
               onChange={handleInputChange}
               size="small"
+              required
               sx={{
                 '& input': {
                   padding: '8.5px 14px',
@@ -208,7 +251,7 @@ function Dashboard() {
               <TableBody>
                 {filteredExpenses.map((expense) => (
                   <TableRow key={expense.id}>
-                    <TableCell>{expense.name}</TableCell>
+                    <TableCell>{expense.title}</TableCell>
                     <TableCell>₹{expense.amount}</TableCell>
                     <TableCell>{expense.category}</TableCell>
                     <TableCell>{expense.date}</TableCell>
@@ -241,8 +284,8 @@ function Dashboard() {
               <Box sx={{ pt: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <TextField
                   label="Expense Name"
-                  name="name"
-                  value={editingExpense?.name || ''}
+                  name="title"
+                  value={editingExpense?.title || ''}
                   onChange={handleEditInputChange}
                   fullWidth
                 />
