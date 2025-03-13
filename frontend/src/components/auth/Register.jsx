@@ -11,7 +11,7 @@ import {
   Paper,
   InputAdornment,
   IconButton,
-  Grid,
+  CircularProgress,
 } from '@mui/material';
 import {
   Person,
@@ -20,14 +20,17 @@ import {
   Visibility,
   VisibilityOff,
 } from '@mui/icons-material';
+import { register } from '../../services/authService';
+import { useAuth } from '../../context/AuthContext';
 
 function Register() {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
-    firstName: '',
-    lastName: '',
+    username: '',
     email: '',
     password: '',
     confirmPassword: '',
@@ -44,16 +47,26 @@ function Register() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
       return;
     }
+
+    setLoading(true);
     try {
-      // TODO: Implement registration logic with backend
-      console.log('Registration data:', formData);
-      navigate('/login');
+      const response = await register({
+        email: formData.email,
+        username: formData.username,
+        password: formData.password,
+      });
+      setUser(response.user);
+      navigate('/dashboard');
     } catch (err) {
-      setError(err.message || 'Failed to register');
+      setError(err.error || 'Registration failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -84,15 +97,6 @@ function Register() {
         '-webkit-box-shadow': '0 0 0 100px white inset',
         '-webkit-text-fill-color': '#000',
       },
-    },
-  };
-
-  const iconButtonSx = {
-    '&:hover': {
-      backgroundColor: 'transparent',
-    },
-    '&:focus': {
-      outline: 'none',
     },
   };
 
@@ -133,48 +137,26 @@ function Register() {
           {error && <Alert severity="error" sx={{ mt: 2, width: '100%' }}>{error}</Alert>}
 
           <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1, width: '100%' }}>
-            <Grid container spacing={2}>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  required
-                  fullWidth
-                  id="firstName"
-                  label="First Name"
-                  name="firstName"
-                  autoComplete="given-name"
-                  value={formData.firstName}
-                  onChange={handleChange}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Person sx={{ color: 'text.secondary' }} />
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={textFieldSx}
-                />
-              </Grid>
-              <Grid item xs={12} sm={6}>
-                <TextField
-                  required
-                  fullWidth
-                  id="lastName"
-                  label="Last Name"
-                  name="lastName"
-                  autoComplete="family-name"
-                  value={formData.lastName}
-                  onChange={handleChange}
-                  InputProps={{
-                    startAdornment: (
-                      <InputAdornment position="start">
-                        <Person sx={{ color: 'text.secondary' }} />
-                      </InputAdornment>
-                    ),
-                  }}
-                  sx={textFieldSx}
-                />
-              </Grid>
-            </Grid>
+            <TextField
+              margin="normal"
+              required
+              fullWidth
+              id="username"
+              label="Username"
+              name="username"
+              autoComplete="username"
+              value={formData.username}
+              onChange={handleChange}
+              disabled={loading}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Person sx={{ color: 'text.secondary' }} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={textFieldSx}
+            />
 
             <TextField
               margin="normal"
@@ -186,6 +168,7 @@ function Register() {
               autoComplete="email"
               value={formData.email}
               onChange={handleChange}
+              disabled={loading}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -207,6 +190,7 @@ function Register() {
               autoComplete="new-password"
               value={formData.password}
               onChange={handleChange}
+              disabled={loading}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -219,7 +203,14 @@ function Register() {
                       aria-label="toggle password visibility"
                       onClick={() => setShowPassword(!showPassword)}
                       edge="end"
-                      sx={iconButtonSx}
+                      sx={{
+                        '&:hover': {
+                          backgroundColor: 'transparent',
+                        },
+                        '&:focus': {
+                          outline: 'none',
+                        },
+                      }}
                     >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
@@ -239,6 +230,7 @@ function Register() {
               id="confirmPassword"
               value={formData.confirmPassword}
               onChange={handleChange}
+              disabled={loading}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -251,7 +243,14 @@ function Register() {
                       aria-label="toggle password visibility"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
                       edge="end"
-                      sx={iconButtonSx}
+                      sx={{
+                        '&:hover': {
+                          backgroundColor: 'transparent',
+                        },
+                        '&:focus': {
+                          outline: 'none',
+                        },
+                      }}
                     >
                       {showConfirmPassword ? <VisibilityOff /> : <Visibility />}
                     </IconButton>
@@ -265,6 +264,7 @@ function Register() {
               type="submit"
               fullWidth
               variant="contained"
+              disabled={loading}
               sx={{
                 mt: 3,
                 mb: 2,
@@ -276,7 +276,7 @@ function Register() {
                 borderRadius: 1,
               }}
             >
-              Sign Up
+              {loading ? <CircularProgress size={24} color="inherit" /> : 'Sign Up'}
             </Button>
 
             <Box sx={{ textAlign: 'center', mt: 2 }}>

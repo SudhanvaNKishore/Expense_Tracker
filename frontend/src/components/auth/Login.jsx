@@ -11,6 +11,7 @@ import {
   Paper,
   InputAdornment,
   IconButton,
+  CircularProgress,
 } from '@mui/material';
 import {
   Person,
@@ -18,10 +19,14 @@ import {
   Visibility,
   VisibilityOff,
 } from '@mui/icons-material';
+import { login } from '../../services/authService';
+import { useAuth } from '../../context/AuthContext';
 
 function Login() {
   const navigate = useNavigate();
+  const { setUser } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -42,12 +47,17 @@ function Login() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setError('');
+    setLoading(true);
+    
     try {
-      // TODO: Implement login logic with backend
-      console.log('Login data:', formData);
+      const response = await login(formData);
+      setUser(response.user);
       navigate('/dashboard');
     } catch (err) {
-      setError(err.message || 'Failed to login');
+      setError(err.error || 'Failed to login. Please check your credentials.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -129,6 +139,7 @@ function Login() {
               autoFocus
               value={formData.email}
               onChange={handleChange}
+              disabled={loading}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -149,6 +160,7 @@ function Login() {
               autoComplete="current-password"
               value={formData.password}
               onChange={handleChange}
+              disabled={loading}
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -181,6 +193,7 @@ function Login() {
               type="submit"
               fullWidth
               variant="contained"
+              disabled={loading}
               sx={{
                 mt: 3,
                 mb: 2,
@@ -192,7 +205,7 @@ function Login() {
                 borderRadius: 1,
               }}
             >
-              Login
+              {loading ? <CircularProgress size={24} color="inherit" /> : 'Login'}
             </Button>
             <Box sx={{ textAlign: 'center', mt: 2 }}>
               <MuiLink
